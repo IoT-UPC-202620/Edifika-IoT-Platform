@@ -26,3 +26,30 @@
 - Último commit: docs(postman): full IoT API collection for the mobile app (H5)
 - Métricas: Colección cubre 100% endpoints del contrato (36/36 endpoints en §4.2, §5, §6), 0 secretos hardcodeados
 - Bloqueos / notas: H5 completado con éxito
+
+## Task 4 (Plan 5 Task 1) — Compose de punta a punta   [x] hecha
+- Rama: feature/H4-e2e-compose
+- Paso actual: Step 3 — Commit and merge to develop
+- Archivos tocados: docker-compose.e2e.yml, e2e/wiremock/mappings/residents-building-12.json, e2e/wiremock/mappings/debts-default.json, e2e/README.md, TASKS.md
+- Tests: docker compose -f docker-compose.e2e.yml build (OK); docker compose -f docker-compose.e2e.yml up -d --wait (all 7 services healthy)
+- Último commit: chore(e2e): end-to-end compose with services, gateway, simulator and WireMock stubs (H4)
+- Métricas: 7/7 servicios saludables (rabbitmq, mosquitto, postgres, wiremock, access, telemetry, api-gateway)
+- Bloqueos / notas: ninguno
+
+## Task 5 (Plan 5 Task 2) — Fixtures del suite   [ ] pendiente
+- Rama: feature/H4-e2e-fixtures
+- Paso actual: pendiente
+- Archivos tocados: pendiente
+- Tests: pendiente
+- Último commit: pendiente
+- Métricas: pendiente
+- Bloqueos / notas: ninguno
+
+## Task 6 (Plan 5 Task 3) — Los 7 escenarios de H4   [ ] pendiente
+- Rama: feature/H4-scenarios
+- Paso actual: pendiente
+- Archivos tocados: pendiente
+- Tests: pendiente
+- Último commit: pendiente
+- Métricas: pendiente
+- Bloqueos / notas: ninguno

@@ -1,0 +1,152 @@
+include:
+  - docker-compose.yml
+
+services:
+  wiremock:
+    image: wiremock/wiremock:3.13.1
+    ports:
+      - "8099:8080"
+    volumes:
+      - ./e2e/wiremock/mappings:/home/wiremock/mappings:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/__admin/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - edifika-iot
+
+  access:
+    build:
+      context: ../Edifika-Microservice-IoT-Access-Management
+    ports:
+      - "8089:8089"
+    environment:
+      PORT: 8089
+      DATABASE_URL: jdbc:postgresql://postgres:5432/access_db
+      DATABASE_USERNAME: edifika
+      DATABASE_PASSWORD: edifika-dev
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: edifika
+      RABBITMQ_PASSWORD: edifika-dev
+      RESIDENTIAL_SERVICE_URL: http://wiremock:8080
+      PAYMENT_SERVICE_URL: http://wiremock:8080
+      DEBT_CHECK_ENABLED: "true"
+      DEBT_CHECK_INTERVAL_MINUTES: 1
+      JWT_SECRET: e2e-secret-key-must-be-at-least-32-characters-long
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      wiremock:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8089/v3/api-docs > /dev/null || curl -fs http://localhost:8089/v3/api-docs > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+      start_period: 30s
+    networks:
+      - edifika-iot
+
+  telemetry:
+    build:
+      context: ../Edifika-Microservice-IoT-Telemetry
+    ports:
+      - "8090:8090"
+    environment:
+      PORT: 8090
+      DATABASE_URL: jdbc:postgresql://postgres:5432/telemetry_db
+      DATABASE_USERNAME: edifika
+      DATABASE_PASSWORD: edifika-dev
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: edifika
+      RABBITMQ_PASSWORD: edifika-dev
+      JWT_SECRET: e2e-secret-key-must-be-at-least-32-characters-long
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8090/v3/api-docs > /dev/null || curl -fs http://localhost:8090/v3/api-docs > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+      start_period: 30s
+    networks:
+      - edifika-iot
+
+  api-gateway:
+    build:
+      context: ../Edifika-ApiGateway
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      ACCESS_SERVICE_URL: http://access:8089
+      TELEMETRY_SERVICE_URL: http://telemetry:8090
+    depends_on:
+      access:
+        condition: service_healthy
+      telemetry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8080/ || wget -q -O - http://localhost:8080/ > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - edifika-iot
+
+  edge-gateway:
+    build:
+      context: ${EDGE_GATEWAY_DIR:-../../edge-gateway}
+    ports:
+      - "8000:8000"
+    environment:
+      EDGE_GATEWAY_ID: ${GATEWAY_ID:-edge-gateway-01}
+      EDGE_SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+      EDGE_DATABASE_PATH: /data/edge-gateway.db
+      EDGE_MQTT_HOST: mosquitto
+      EDGE_MQTT_PORT: "1883"
+      EDGE_AMQP_URL: amqp://edifika:edifika-dev@rabbitmq:5672/
+      EDGE_SYNC_BASE_URL: http://access:8089
+      EDGE_SYNC_API_KEY: ${E2E_GATEWAY_API_KEY:-dev-service-token}
+      EDGE_SYNC_INTERVAL_S: "5"
+      EDGE_OUTBOX_INTERVAL_S: "1"
+      EDGE_TIMEZONE: America/Lima
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      access:
+        condition: service_healthy
+    volumes:
+      - edge_gateway_data:/data
+    networks:
+      - edifika-iot
+
+  sim-door:
+    build:
+      context: ${EDGE_GATEWAY_DIR:-../../edge-gateway}
+    command: ["python", "-m", "simulator", "run", "--device", "esp32-acc-01"]
+    environment:
+      SIM_MQTT_HOST: mosquitto
+      SIM_MQTT_PORT: "1883"
+      SIM_GATEWAY_URL: http://edge-gateway:8000
+      SIM_SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    networks:
+      - edifika-iot
+
+volumes:
+  edge_gateway_data:
