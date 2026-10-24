@@ -1,0 +1,6 @@
+# Mosquitto ACL Configuration Example
+# Development default: allow_anonymous true
+# Production device ACL example:
+#
+# user esp32-acc-01
+# topic readwrite edifika/v1/nodes/esp32-acc-01/#
