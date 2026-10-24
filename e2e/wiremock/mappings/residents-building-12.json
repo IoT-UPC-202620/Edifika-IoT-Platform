@@ -1,0 +1,46 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v1/residential/buildings/12/residents"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": [
+      {
+        "idUserUnit": 1,
+        "idUnit": 40,
+        "idUser": 15,
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "status": "ACTIVE"
+      },
+      {
+        "idUserUnit": 2,
+        "idUnit": 41,
+        "idUser": 16,
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "status": "ACTIVE"
+      },
+      {
+        "idUserUnit": 3,
+        "idUnit": 42,
+        "idUser": 17,
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "status": "ACTIVE"
+      },
+      {
+        "idUserUnit": 4,
+        "idUnit": 43,
+        "idUser": 18,
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "status": "ACTIVE"
+      }
+    ]
+  }
+}
