@@ -26,6 +26,26 @@
     },
     "fw": {
       "type": "string"
+    },
+    "mode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "FREE_ACCESS",
+        "RESERVED",
+        null
+      ],
+      "description": "Door mode the node currently shows; the gateway re-sends `mode` when it differs from the latest configuration"
+    },
+    "color": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "LED colour shown while RESERVED; null otherwise"
     }
   },
   "required": [
