@@ -1,0 +1,19 @@
+# Python virtual environment & cache
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment files
+.env
+!.env.example
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Ensure TASKS.md is tracked
+!TASKS.md
