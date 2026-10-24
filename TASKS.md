@@ -17,3 +17,39 @@
 - Último commit: docs(contracts): v1 JSON schemas for MQTT, AMQP, sync and REST (H0)
 - Métricas: 53 tests passed (47 schema validations, 16 envelope validations, enum & timezone checks)
 - Bloqueos / notas: H0 completado con éxito
+
+## Task 3 — Colección Postman de la API para la app móvil   [x] hecha
+- Rama: feature/H5-postman-collection
+- Paso actual: Step 5 — Commit and merge to develop
+- Archivos tocados: tests/test_postman_collection.py, postman/Edifika-IoT.postman_collection.json, postman/Edifika-IoT.local.postman_environment.json, postman/README.md, MILESTONES.md, TASKS.md
+- Tests: .venv/Scripts/python -m pytest -v (55 passed in 0.35s); npx newman@6 parse valid (ECONNREFUSED on localhost:8080 as expected)
+- Último commit: docs(postman): full IoT API collection for the mobile app (H5)
+- Métricas: Colección cubre 100% endpoints del contrato (36/36 endpoints en §4.2, §5, §6), 0 secretos hardcodeados
+- Bloqueos / notas: H5 completado con éxito
+
+## Task 4 (Plan 5 Task 1) — Compose de punta a punta   [x] hecha
+- Rama: feature/H4-e2e-compose
+- Paso actual: Step 3 — Commit and merge to develop
+- Archivos tocados: docker-compose.e2e.yml, e2e/wiremock/mappings/residents-building-12.json, e2e/wiremock/mappings/debts-default.json, e2e/README.md, TASKS.md
+- Tests: docker compose -f docker-compose.e2e.yml build (OK); docker compose -f docker-compose.e2e.yml up -d --wait (all 7 services healthy)
+- Último commit: chore(e2e): end-to-end compose with services, gateway, simulator and WireMock stubs (H4)
+- Métricas: 7/7 servicios saludables (rabbitmq, mosquitto, postgres, wiremock, access, telemetry, api-gateway)
+- Bloqueos / notas: ninguno
+
+## Task 5 (Plan 5 Task 2) — Fixtures del suite   [x] hecha
+- Rama: feature/H4-e2e-fixtures
+- Paso actual: Step 3 — Commit and merge to develop
+- Archivos tocados: integration-tests/requirements.txt, integration-tests/support/**, integration-tests/conftest.py, integration-tests/test_world_smoke.py, TASKS.md
+- Tests: .\.venv-e2e\Scripts\python.exe -m pytest integration-tests\test_world_smoke.py (1 passed in 6.25s)
+- Último commit: test(e2e): fixtures for API, MQTT node, AMQP spy, tokens and WireMock (H4)
+- Métricas: 1 passed in 6.25s; puerta ACTIVE en GET /iot/devices/{id}
+- Bloqueos / notas: ninguno
+
+## Task 6 (Plan 5 Task 3) — Los 7 escenarios de H4   [x] hecha
+- Rama: feature/H4-scenarios
+- Paso actual: Step 4 — Commit and merge to develop
+- Archivos tocados: integration-tests/test_h4_scenarios.py, TASKS.md, MILESTONES.md
+- Tests: .\.venv-e2e\Scripts\python.exe -m pytest integration-tests\test_h4_scenarios.py -v -s (7 passed in 287.04s)
+- Último commit: test(e2e): H4 scenarios for door roles, reservations, LED, offline and telemetry (H4)
+- Métricas: 7/7 escenarios en verde (100% de escenarios H4 pasando contra stack real a través de ApiGateway)
+- Bloqueos / notas: H4 completado con éxito
