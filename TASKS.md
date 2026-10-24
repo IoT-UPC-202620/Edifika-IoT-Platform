@@ -36,13 +36,13 @@
 - Métricas: 7/7 servicios saludables (rabbitmq, mosquitto, postgres, wiremock, access, telemetry, api-gateway)
 - Bloqueos / notas: ninguno
 
-## Task 5 (Plan 5 Task 2) — Fixtures del suite   [ ] pendiente
+## Task 5 (Plan 5 Task 2) — Fixtures del suite   [x] hecha
 - Rama: feature/H4-e2e-fixtures
-- Paso actual: pendiente
-- Archivos tocados: pendiente
-- Tests: pendiente
-- Último commit: pendiente
-- Métricas: pendiente
+- Paso actual: Step 3 — Commit and merge to develop
+- Archivos tocados: integration-tests/requirements.txt, integration-tests/support/**, integration-tests/conftest.py, integration-tests/test_world_smoke.py, TASKS.md
+- Tests: .\.venv-e2e\Scripts\python.exe -m pytest integration-tests\test_world_smoke.py (1 passed in 6.25s)
+- Último commit: test(e2e): fixtures for API, MQTT node, AMQP spy, tokens and WireMock (H4)
+- Métricas: 1 passed in 6.25s; puerta ACTIVE en GET /iot/devices/{id}
 - Bloqueos / notas: ninguno
 
 ## Task 6 (Plan 5 Task 3) — Los 7 escenarios de H4   [ ] pendiente
