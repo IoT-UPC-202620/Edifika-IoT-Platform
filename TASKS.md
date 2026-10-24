@@ -45,11 +45,11 @@
 - Métricas: 1 passed in 6.25s; puerta ACTIVE en GET /iot/devices/{id}
 - Bloqueos / notas: ninguno
 
-## Task 6 (Plan 5 Task 3) — Los 7 escenarios de H4   [ ] pendiente
+## Task 6 (Plan 5 Task 3) — Los 7 escenarios de H4   [x] hecha
 - Rama: feature/H4-scenarios
-- Paso actual: pendiente
-- Archivos tocados: pendiente
-- Tests: pendiente
-- Último commit: pendiente
-- Métricas: pendiente
-- Bloqueos / notas: ninguno
+- Paso actual: Step 4 — Commit and merge to develop
+- Archivos tocados: integration-tests/test_h4_scenarios.py, TASKS.md, MILESTONES.md
+- Tests: .\.venv-e2e\Scripts\python.exe -m pytest integration-tests\test_h4_scenarios.py -v -s (7 passed in 287.04s)
+- Último commit: test(e2e): H4 scenarios for door roles, reservations, LED, offline and telemetry (H4)
+- Métricas: 7/7 escenarios en verde (100% de escenarios H4 pasando contra stack real a través de ApiGateway)
+- Bloqueos / notas: H4 completado con éxito
