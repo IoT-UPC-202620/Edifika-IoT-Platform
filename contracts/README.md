@@ -40,6 +40,7 @@ Prefijo `edifika/v1`, QoS 1, sin retained.
 | `access` | `{"v":"1","ts":…,"credentialType":"RFID","credential":"04A1B2C3"}` | UID compacto, en mayúsculas. **`deviceId` es opcional**: si falta, se toma del tópico; si viene, debe coincidir |
 | `readings` | `{"v":"1","ts":…,"sensor":"temperature","value":24.5,"unit":"°C"}` | Un mensaje por sensor, **cada 10 s** con el último valor válido. `value: null` significa que no hubo medida. `deviceId` es opcional, igual que en `access` |
 | `ack` | `{"v":"1","ts":…,"commandId":"c0ffee…","status":"OK","detail":""}` | `status`: `OK` o `FAILED`. Se acepta `ERROR` como alias de `FAILED`. `detail` vacío equivale a `null`. Es obligatorio para todo comando con `commandId`, en ≤ 3 s. `deviceId` es opcional |
+| `enrollment` | `{"v":"1","ts":…,"credentialType":"RFID","credential":"04A1B2C3"}` | Tarjeta leída **en modo registro** (ver `enroll`). Misma forma que `access`, pero no es un intento de acceso: el gateway no decide nada, no guarda intento y la puerta no se abre; la reenvía como `CardEnrolled`. `deviceId` es opcional |
 
 Sensores (`sensor`, `unit`, rango válido). La unidad `C` se normaliza a `°C`.
 - `temperature`, `°C`, −40..85
@@ -63,6 +64,7 @@ Un valor fuera de rango cuenta como lectura inválida; tres lecturas inválidas 
 | `alert` | `{"kind":"…","active":true,"message":"…","buzzer":"alert"}` | aviso local |
 | `maintenance` | `{"active":true,"message":"Under maintenance"}` | desactiva o reactiva el nodo |
 | `time_sync` | `{"epoch":1782000000,"timezone":"America/Lima","driftSeconds":3.1}` | ajusta el reloj |
+| `enroll` | `{"active":true,"seconds":60}` o `{"active":false}` (`seconds` 1..300, por defecto 60) | entra o sale del **modo registro**: LED cian y `MODO REGISTRO` en el OLED. La siguiente tarjeta se publica en `enrollment` (no en `access`), suena el beep de captura, muestra `Tarjeta capturada` y vuelve al modo normal. Si vence `seconds` sin tarjeta, sale solo. En mantenimiento responde `ack FAILED "maintenance"` |
 
 Un `type` desconocido se responde con `ack FAILED "unsupported command"`.
 
@@ -141,7 +143,7 @@ Reglas de contenido:
 
 | Cola | Exchange | Enlaces | Declara y consume |
 |---|---|---|---|
-| `access.edge-events` | `edifika.events` | `edge.access-attempt`, `edge.credential-changed`, `edge.device-status`, `edge.command-result` | IoT Access Management |
+| `access.edge-events` | `edifika.events` | `edge.access-attempt`, `edge.credential-changed`, `edge.device-status`, `edge.command-result`, `edge.card-enrolled` | IoT Access Management |
 | `telemetry.edge-events` | `edifika.events` | `edge.reading`, `edge.alert`, `edge.device-status` | IoT Telemetry |
 | `telemetry.device-registry` | `edifika.events` | `iot.device-registered`, `iot.device-updated`, `iot.device-decommissioned` | IoT Telemetry |
 | `edge.<gatewayCode>.commands` | `edifika.edge.commands` | `<gatewayCode>.#` | Edge Gateway |
@@ -177,6 +179,7 @@ Propiedades AMQP:
 | `edge.device-status` | `DeviceStatus` | `{"deviceId":"esp32-acc-01","event":"online"}`; variantes en la tabla de abajo |
 | `edge.command-result` | `CommandResult` | `{"deviceId":"esp32-acc-01","commandId":"…","type":"rgb","status":"OK","detail":null}` |
 | `edge.credential-changed` | `CredentialChanged` | `{"uid":"04A1B2C3","residentId":"guardia-1","status":"ACTIVE","source":"edge_manual"}` |
+| `edge.card-enrolled` | `CardEnrolled` | `{"deviceId":"esp32-acc-01","deviceCode":"esp32-acc-01","uid":"04A1B2C3","credentialType":"RFID"}`. Tarjeta capturada en modo registro; IoT Access Management la asigna a la sesión activa del lector (acepta lecturas hechas dentro de la ventana que llegan hasta 15 s tarde) |
 
 **Valores de `reason` en `AccessAttempt`:** `ok`, `unknown_credential`, `credential_suspended`, `credential_revoked`, `credential_expired`, `outside_schedule`, `no_permission`, `not_authorized`, `maintenance`, `unsupported_credential_type`.
 
@@ -217,6 +220,8 @@ En los eventos de dominio, `buildingId` del sobre es el del dispositivo. `reason
 |---|---|---|
 | `<gatewayCode>.device-command` | `DeviceCommandRequested` | `{"commandId":"5b0e…(uuid sin guiones, 32 hex)","deviceCode":"esp32-acc-01","type":"rgb","params":{"color":"#00FF88"},"expiresAt":"2026-10-23T15:04:15Z"}` |
 | `<gatewayCode>.sync-requested` | `SyncRequested` | `{"syncVersion":43}` |
+
+Tipos de `DeviceCommandRequested`: `rgb` (`{"color":"#00FF88"}`) y `enroll` (`{"active":true,"seconds":60}` o `{"active":false}`). El gateway valida `enroll` (`active` booleano, `seconds` entero 1..300; con `active:true` el dispositivo no puede estar `OFFLINE`, `INACTIVE` ni `MAINTENANCE`) y lo reenvía al nodo con el mismo tipo; salir del modo registro siempre se reenvía.
 
 El sobre lleva `producer: "iot-access-management"`, `gatewayCode` y `buildingId`. El resultado de una orden vuelve como `edge.command-result`, con `commandId` y `correlationId` iguales.
 
@@ -313,12 +318,15 @@ Notas:
 | `DELETE /access/reservations/{id}/authorizations/{userId}` | titular o ADMIN | — | `204` · 404 |
 | `PUT /iot/devices/{id}/led` | titular de la reserva activa o ADMIN | `{"color":"#00ff88"}` | `202 DeviceCommandResource` (`PENDING`). Errores: 409 `"La puerta no está reservada"` (`FREE_ACCESS`); 409 si el dispositivo no está `ACTIVE`; 403 si no es titular ni ADMIN; 400 color inválido; 400 si el dispositivo no tiene `RGB_LED` |
 | `GET /iot/device-commands/{commandId}` | quien lo pidió o ADMIN | — | `200 DeviceCommandResource` · 404 |
+| `POST /iot/devices/{id}/enrollment` | ADMIN | — | `201 CardEnrollmentResource` (`ACTIVE`, 60 s). Envía `enroll` al lector y cancela una sesión previa del mismo lector · 404 · 400 sin capacidad `RFID` · 409 lector no `ACTIVE` |
+| `GET /iot/devices/{id}/enrollment` | ADMIN | — | `200 CardEnrollmentResource` (última sesión; vence la que pasó su ventana. Si `CAPTURED`, trae `capturedUid` y `existingCredential` si la tarjeta ya existe) · `204` si el lector no tiene sesiones |
+| `DELETE /iot/devices/{id}/enrollment` | ADMIN | — | `204`. Si la sesión sigue `ACTIVE` la cancela y envía `enroll {"active":false}` |
 
 **Credenciales, accesos y estado del residente**
 
 | Endpoint | Rol | Request | Response |
 |---|---|---|---|
-| `POST /access/credentials` | ADMIN | `{"rfidUid":"04 a1 b2 c3","buildingId":12,"userId":15,"holderName":"Ana Perez","validFrom":null,"validUntil":null}` | `201 CredentialResource` (se dispara la verificación de deuda del usuario) · 409 UID duplicado · 400 UID inválido |
+| `POST /access/credentials` | ADMIN | `{"rfidUid":"04 a1 b2 c3","buildingId":12,"userId":15,"holderName":"Ana Perez","validFrom":null,"validUntil":null}` | `201 CredentialResource` (se dispara la verificación de deuda del usuario) · 409 UID duplicado (tarjeta `ACTIVE` o `SUSPENDED`) · 400 UID inválido. Si el UID pertenece a una tarjeta `REVOKED` o `LOST`, se **reasigna**: la misma credencial pasa al nuevo titular y edificio y vuelve a `ACTIVE` |
 | `GET /access/credentials` | ADMIN | `?buildingId=&userId=&status=` | `200 [CredentialResource]` |
 | `PATCH /access/credentials/{id}/status` | ADMIN | `{"status":"ACTIVE"}` (`ACTIVE`, `SUSPENDED`, `REVOKED`, `LOST`) | `200 CredentialResource`. Reactivar limpia `suspensionReason`; la próxima verificación de deuda puede volver a suspenderla |
 | `GET /access/me/credentials` | autenticado | — | `200 [CredentialResource]` (`rfidUid` enmascarado) |

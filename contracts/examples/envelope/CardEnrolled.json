@@ -1,0 +1,16 @@
+{
+  "eventId": "9a2b3c4d5e6f40718293a4b5c6d7e8f9",
+  "eventType": "CardEnrolled",
+  "eventVersion": 1,
+  "occurredAt": "2026-11-02T06:00:03Z",
+  "producer": "edge-gateway",
+  "buildingId": null,
+  "gatewayCode": "edge-gateway-01",
+  "correlationId": null,
+  "payload": {
+    "deviceId": "esp32-acc-01",
+    "deviceCode": "esp32-acc-01",
+    "uid": "04A1B2C3",
+    "credentialType": "RFID"
+  }
+}
