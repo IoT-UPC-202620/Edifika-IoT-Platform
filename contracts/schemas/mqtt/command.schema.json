@@ -27,7 +27,8 @@
         "buzzer",
         "alert",
         "maintenance",
-        "time_sync"
+        "time_sync",
+        "enroll"
       ]
     },
     "params": {
