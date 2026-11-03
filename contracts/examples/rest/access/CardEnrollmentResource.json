@@ -1,0 +1,12 @@
+{
+  "id": 9,
+  "deviceId": 3,
+  "deviceCode": "esp32-acc-01",
+  "buildingId": 12,
+  "status": "CAPTURED",
+  "startedAt": "2026-11-02T06:00:00Z",
+  "expiresAt": "2026-11-02T06:01:00Z",
+  "capturedUid": "04A1B2C3",
+  "capturedAt": "2026-11-02T06:00:03Z",
+  "existingCredential": null
+}

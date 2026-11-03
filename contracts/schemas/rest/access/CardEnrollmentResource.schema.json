@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardEnrollmentResource",
+  "description": "Sesión de modo registro de un lector. `capturedUid` va completo: solo lo ve un ADMIN, que lo usa para crear la credencial.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "deviceId": {
+      "type": "integer"
+    },
+    "deviceCode": {
+      "type": "string"
+    },
+    "buildingId": {
+      "type": "integer"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "CAPTURED",
+        "CANCELLED",
+        "EXPIRED"
+      ]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capturedUid": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "capturedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "existingCredential": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "userId": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "holderName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "SUSPENDED",
+            "REVOKED",
+            "LOST"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "deviceId",
+    "deviceCode",
+    "buildingId",
+    "status",
+    "startedAt",
+    "expiresAt"
+  ],
+  "additionalProperties": true
+}
