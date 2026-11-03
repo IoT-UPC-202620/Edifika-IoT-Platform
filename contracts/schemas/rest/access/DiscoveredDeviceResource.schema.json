@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DiscoveredDeviceResource",
+  "description": "Nodo identificado por un gateway y aún no adoptado (o ya resuelto). El edificio es el del gateway que lo identificó.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "deviceCode": {
+      "type": "string"
+    },
+    "gatewayId": {
+      "type": "integer"
+    },
+    "gatewayCode": {
+      "type": "string"
+    },
+    "buildingId": {
+      "type": "integer"
+    },
+    "mac": {
+      "type": "string"
+    },
+    "firmware": {
+      "type": "string"
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "RFID",
+          "LOCK",
+          "BUZZER",
+          "OLED",
+          "RGB_LED",
+          "TEMPERATURE",
+          "HUMIDITY"
+        ]
+      }
+    },
+    "ip": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rssi": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "pairingCode": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "ADOPTED",
+        "IGNORED"
+      ]
+    },
+    "deviceId": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "firstSeenAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lastSeenAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "deviceCode",
+    "gatewayId",
+    "gatewayCode",
+    "buildingId",
+    "mac",
+    "firmware",
+    "capabilities",
+    "pairingCode",
+    "status",
+    "firstSeenAt",
+    "lastSeenAt"
+  ],
+  "additionalProperties": true
+}

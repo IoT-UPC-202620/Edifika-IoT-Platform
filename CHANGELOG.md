@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Device discovery contracts: MQTT `announce` channel and `identify` command, `DeviceDiscovered` edge event (`edge.device-discovered`), `DiscoveredDeviceResource`, `AdoptDeviceRequest` and the `/iot/discovered-devices` endpoints, plus the discovery and adoption flow (section 1.4).
 - Card enrollment contracts: MQTT `enrollment` channel and `enroll` command, `CardEnrolled` edge event (`edge.card-enrolled`, bound to `access.edge-events`), `CardEnrollmentResource` and the `/iot/devices/{id}/enrollment` endpoints.
 - `POST /access/credentials` reassigns a `REVOKED` or `LOST` card to the new holder instead of answering 409.
 

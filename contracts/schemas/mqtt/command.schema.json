@@ -28,7 +28,8 @@
         "alert",
         "maintenance",
         "time_sync",
-        "enroll"
+        "enroll",
+        "identify"
       ]
     },
     "params": {
