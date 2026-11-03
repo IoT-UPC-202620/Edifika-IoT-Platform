@@ -1,0 +1,20 @@
+{
+  "v": "1",
+  "ts": "2026-11-03T15:04:05Z",
+  "deviceId": "esp32-3c71bf",
+  "mac": "24:6F:28:3C:71:BF",
+  "fw": "v0.6.0",
+  "model": "door-node",
+  "capabilities": [
+    "RFID",
+    "LOCK",
+    "BUZZER",
+    "OLED",
+    "RGB_LED",
+    "TEMPERATURE",
+    "HUMIDITY"
+  ],
+  "ip": "192.168.1.40",
+  "rssi": -58,
+  "pairingCode": "4821"
+}
