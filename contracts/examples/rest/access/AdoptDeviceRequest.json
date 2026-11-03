@@ -1,0 +1,15 @@
+{
+  "name": "Puerta gimnasio",
+  "location": "Piso 2",
+  "deviceType": "DOOR",
+  "capabilities": [
+    "RFID",
+    "LOCK",
+    "BUZZER",
+    "OLED",
+    "RGB_LED",
+    "TEMPERATURE",
+    "HUMIDITY"
+  ],
+  "unlockSeconds": 5
+}
