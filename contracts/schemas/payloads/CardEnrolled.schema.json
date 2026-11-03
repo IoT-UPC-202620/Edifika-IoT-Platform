@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CardEnrolled Event Payload",
+  "description": "Tarjeta capturada por un lector en modo registro. IoT Access Management la asigna a la sesión de registro activa de ese lector.",
+  "type": "object",
+  "properties": {
+    "deviceId": {
+      "type": "string"
+    },
+    "deviceCode": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "string",
+      "pattern": "^[0-9A-F]{8,20}$"
+    },
+    "credentialType": {
+      "type": "string",
+      "enum": [
+        "RFID"
+      ]
+    }
+  },
+  "required": [
+    "deviceCode",
+    "uid",
+    "credentialType"
+  ],
+  "additionalProperties": true
+}
