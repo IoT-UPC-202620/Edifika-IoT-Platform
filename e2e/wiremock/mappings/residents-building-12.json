@@ -40,6 +40,14 @@
         "startDate": "2026-01-01",
         "endDate": null,
         "status": "ACTIVE"
+      },
+      {
+        "idUserUnit": 5,
+        "idUnit": 44,
+        "idUser": 4,
+        "startDate": "2026-11-07",
+        "endDate": null,
+        "status": "ACTIVE"
       }
     ]
   }

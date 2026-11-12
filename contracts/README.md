@@ -36,10 +36,12 @@ Prefijo `edifika/v1`, QoS 1, sin retained.
 
 | Canal | Payload (forma del firmware de referencia) | Notas |
 |---|---|---|
-| `heartbeat` | `{"v":"1","ts":"2026-10-24T15:04:05Z","deviceId":"esp32-acc-01","fw":"v0.3.0"}` | Al conectar y luego **cada 10 s**. El gateway marca offline tras `EDGE_HEARTBEAT_TIMEOUT_S` (30 s, es decir 3 heartbeats). `fw` es opcional |
+| `heartbeat` | `{"v":"1","ts":"2026-10-24T15:04:05Z","deviceId":"esp32-acc-01","fw":"v0.5.0","mode":"RESERVED","color":"#800080"}` | Al conectar y luego **cada 10 s**. El gateway marca offline tras `EDGE_HEARTBEAT_TIMEOUT_S` (30 s, es decir 3 heartbeats). `fw` es opcional. `mode` y `color` (opcionales) informan lo que la puerta muestra ahora mismo; `color` es `null` fuera de `RESERVED`. Al iniciar una sesión MQTT (arranque o reconexión) el nodo envía un heartbeat de inmediato |
 | `access` | `{"v":"1","ts":…,"credentialType":"RFID","credential":"04A1B2C3"}` | UID compacto, en mayúsculas. **`deviceId` es opcional**: si falta, se toma del tópico; si viene, debe coincidir |
 | `readings` | `{"v":"1","ts":…,"sensor":"temperature","value":24.5,"unit":"°C"}` | Un mensaje por sensor, **cada 10 s** con el último valor válido. `value: null` significa que no hubo medida. `deviceId` es opcional, igual que en `access` |
 | `ack` | `{"v":"1","ts":…,"commandId":"c0ffee…","status":"OK","detail":""}` | `status`: `OK` o `FAILED`. Se acepta `ERROR` como alias de `FAILED`. `detail` vacío equivale a `null`. Es obligatorio para todo comando con `commandId`, en ≤ 3 s. `deviceId` es opcional |
+| `enrollment` | `{"v":"1","ts":…,"credentialType":"RFID","credential":"04A1B2C3"}` | Tarjeta leída **en modo registro** (ver `enroll`). Misma forma que `access`, pero no es un intento de acceso: el gateway no decide nada, no guarda intento y la puerta no se abre; la reenvía como `CardEnrolled`. `deviceId` es opcional |
+| `announce` | `{"v":"1","ts":…,"deviceId":"esp32-3c71bf","mac":"24:6F:28:3C:71:BF","fw":"v0.6.0","model":"door-node","capabilities":["RFID","LOCK",…],"ip":"192.168.1.40","rssi":-58,"pairingCode":"4821"}` | El nodo se presenta: al conectarse al broker y, mientras no esté adoptado, cada 60 s. No es *retained*. Ver 1.4 |
 
 Sensores (`sensor`, `unit`, rango válido). La unidad `C` se normaliza a `°C`.
 - `temperature`, `°C`, −40..85
@@ -54,8 +56,8 @@ Un valor fuera de rango cuenta como lectura inválida; tres lecturas inválidas 
 
 | `type` | `params` | El nodo hace |
 |---|---|---|
-| `access_result` | `{"result":"GRANTED","reason":"ok","message":"Access granted","buzzer":"granted","name":"Ana Perez","lockMs":5000}` (si es DENIED: sin `name` ni `lockMs`) | abre el relé `lockMs`, muestra el mensaje y el nombre, suena el buzzer, y pone el LED en verde o rojo 2 s si está en `FREE_ACCESS` |
-| `mode` | `{"mode":"RESERVED","color":"#00FF88"}` o `{"mode":"FREE_ACCESS"}` | guarda el modo. En `RESERVED` pinta `color` (si no viene, mantiene el último) y muestra `RESERVED` en el OLED. En `FREE_ACCESS` el LED vuelve a mostrar el estado (blanco en reposo) |
+| `access_result` | `{"result":"GRANTED","reason":"ok","message":"Access granted","buzzer":"granted","name":"Ana Perez","lockMs":5000}` (si es DENIED: sin `name` ni `lockMs`) | abre el relé `lockMs`, muestra el mensaje y el nombre, suena el buzzer, (el LED RGB no cambia; solo se enciende en `RESERVED`) |
+| `mode` | `{"mode":"RESERVED","color":"#00FF88"}` o `{"mode":"FREE_ACCESS"}` | guarda el modo. En `RESERVED` pinta `color` (si no viene, mantiene el último) y muestra `RESERVED` en el OLED. En `FREE_ACCESS` el LED RGB se **apaga** |
 | `rgb` | `{"color":"#00FF88"}` | pinta el color. Si el nodo está en `FREE_ACCESS`, responde `ack FAILED "not reserved"` |
 | `unlock` | `{"durationMs":5000}` (el firmware acepta también `duration_ms`) | abre durante el tiempo indicado; si no viene, usa `LOCK_OPEN_DURATION_IN_MILLISECONDS` (REST local) |
 | `display` | `{"message":"…"}` (1..64) | OLED |
@@ -63,6 +65,8 @@ Un valor fuera de rango cuenta como lectura inválida; tres lecturas inválidas 
 | `alert` | `{"kind":"…","active":true,"message":"…","buzzer":"alert"}` | aviso local |
 | `maintenance` | `{"active":true,"message":"Under maintenance"}` | desactiva o reactiva el nodo |
 | `time_sync` | `{"epoch":1782000000,"timezone":"America/Lima","driftSeconds":3.1}` | ajusta el reloj |
+| `enroll` | `{"active":true,"seconds":60}` o `{"active":false}` (`seconds` 1..300, por defecto 60) | entra o sale del **modo registro**: LED cian y `MODO REGISTRO` en el OLED. La siguiente tarjeta se publica en `enrollment` (no en `access`), suena el beep de captura, muestra `Tarjeta capturada` y vuelve al modo normal. Si vence `seconds` sin tarjeta, sale solo. En mantenimiento responde `ack FAILED "maintenance"` |
+| `identify` | `{"seconds":10}` (1..60, por defecto 10) | parpadea el LED en blanco y suena para que el admin reconozca la placa. Es el **único** comando que el gateway envía a un nodo no adoptado |
 
 Un `type` desconocido se responde con `ack FAILED "unsupported command"`.
 
@@ -74,14 +78,23 @@ Un `type` desconocido se responde con `ack FAILED "unsupported command"`.
   3. Espera `access_result` hasta 5 s.
   4. Si no llega respuesta, deniega localmente y muestra `Gateway no disponible` (US47).
   5. Las lecturas repetidas de la misma tarjeta dentro de esa espera se ignoran.
-- **LED RGB:** el degradado continuo se elimina.
-  - En `FREE_ACCESS` el LED es blanco en reposo, y verde o rojo durante 2 s tras cada decisión.
-  - En `RESERVED` muestra el color fijado.
-  - En `maintenance` es ámbar (`#FF8000`).
-  - Al arrancar, sin conexión, es rojo fijo hasta el primer heartbeat aceptado.
+- **LED RGB:** el degradado continuo se elimina. **Regla: el LED solo se enciende con la puerta en `RESERVED`.**
+  - Fuera de `RESERVED` está **apagado siempre**: en `FREE_ACCESS`, tras cada decisión, en mantenimiento, sin broker y al arrancar. El feedback lo dan la OLED y el buzzer.
+  - En `RESERVED` muestra el color fijado (blanco si nunca se fijó), también sin conexión con el broker.
+  - En `maintenance` se apaga, aunque la puerta esté reservada.
 - **Malla 3x3:** sin cambios. La fila 1 se enciende con la cerradura abierta, la fila 2 con temperatura ≥ 28 °C y la fila 3 con humedad ≥ 70 %.
 - **Mantenimiento:** con `maintenance.active = true` el nodo ignora las tarjetas y muestra `message`.
 - **Arranque:** el modo inicial es `FREE_ACCESS`. El gateway envía `mode` cuando el nodo vuelve a `ACTIVE`, así que un nodo reiniciado recupera su rol.
+- **Resincronización:** el gateway compara el `mode` y el `color` de cada heartbeat con la configuración vigente y, si difieren, reenvía `mode` (con `color`). Lo hace como máximo cada `EDGE_MODE_RESYNC_INTERVAL_S` (10 s). Así, un nodo que se reinició, se reconectó o perdió una orden recupera la configuración más reciente en el primer heartbeat.
+
+### 1.4 Descubrimiento y adopción
+
+1. **Identidad:** el `deviceId` sale de la MAC del chip (`esp32-` + los 3 últimos bytes en minúsculas, p. ej. `esp32-3c71bf`), así un mismo firmware sirve para todas las placas. `pairingCode` son 4 dígitos derivados de la MAC: siempre el mismo para esa placa.
+2. **Anuncio:** al conectarse, el nodo publica `announce`. Mientras no esté adoptado lo repite cada 60 s y muestra en la OLED `Sin registrar` y `Codigo 4821`.
+3. **Identificación en el gateway:** si el `deviceId` no está registrado, el gateway lo guarda como pendiente y publica `DeviceDiscovered` (al verlo por primera vez, si cambian sus datos y como mínimo cada 5 min). Recién entonces aparece en el sistema, en el edificio de ese gateway.
+4. **Inerte:** un nodo no adoptado no opera. El gateway descarta todos sus mensajes (salvo `announce`) y solo le envía `identify`. El nodo, por su parte, ignora las tarjetas y no publica lecturas.
+5. **Adopción:** el admin la confirma con `POST /iot/discovered-devices/{id}/adopt`. Se crea el dispositivo con el flujo de siempre, el gateway lo recibe en el sync y, en el siguiente heartbeat, le envía `mode`. **El primer `mode` que recibe el nodo es su señal de que fue adoptado:** deja de anunciarse y empieza a operar.
+6. **Reinicio:** un nodo adoptado vuelve a anunciarse al conectarse. Como el gateway ya lo conoce, le responde con `mode` y el nodo sale de inmediato del estado `Sin registrar`.
 
 ## 2. Sync de caché: Edge Gateway → IoT Access Management
 
@@ -141,7 +154,7 @@ Reglas de contenido:
 
 | Cola | Exchange | Enlaces | Declara y consume |
 |---|---|---|---|
-| `access.edge-events` | `edifika.events` | `edge.access-attempt`, `edge.credential-changed`, `edge.device-status`, `edge.command-result` | IoT Access Management |
+| `access.edge-events` | `edifika.events` | `edge.access-attempt`, `edge.credential-changed`, `edge.device-status`, `edge.command-result`, `edge.card-enrolled`, `edge.device-discovered` | IoT Access Management |
 | `telemetry.edge-events` | `edifika.events` | `edge.reading`, `edge.alert`, `edge.device-status` | IoT Telemetry |
 | `telemetry.device-registry` | `edifika.events` | `iot.device-registered`, `iot.device-updated`, `iot.device-decommissioned` | IoT Telemetry |
 | `edge.<gatewayCode>.commands` | `edifika.edge.commands` | `<gatewayCode>.#` | Edge Gateway |
@@ -177,6 +190,8 @@ Propiedades AMQP:
 | `edge.device-status` | `DeviceStatus` | `{"deviceId":"esp32-acc-01","event":"online"}`; variantes en la tabla de abajo |
 | `edge.command-result` | `CommandResult` | `{"deviceId":"esp32-acc-01","commandId":"…","type":"rgb","status":"OK","detail":null}` |
 | `edge.credential-changed` | `CredentialChanged` | `{"uid":"04A1B2C3","residentId":"guardia-1","status":"ACTIVE","source":"edge_manual"}` |
+| `edge.card-enrolled` | `CardEnrolled` | `{"deviceId":"esp32-acc-01","deviceCode":"esp32-acc-01","uid":"04A1B2C3","credentialType":"RFID"}`. Tarjeta capturada en modo registro; IoT Access Management la asigna a la sesión activa del lector (acepta lecturas hechas dentro de la ventana que llegan hasta 15 s tarde) |
+| `edge.device-discovered` | `DeviceDiscovered` | `{"deviceCode":"esp32-3c71bf","mac":"24:6F:28:3C:71:BF","firmware":"v0.6.0","model":"door-node","capabilities":["RFID","LOCK",…],"ip":"192.168.1.40","rssi":-58,"pairingCode":"4821","firstSeenAt":"…","lastSeenAt":"…"}`. El gateway identificó un nodo no registrado; IoT Access Management lo guarda como pendiente en el edificio del gateway |
 
 **Valores de `reason` en `AccessAttempt`:** `ok`, `unknown_credential`, `credential_suspended`, `credential_revoked`, `credential_expired`, `outside_schedule`, `no_permission`, `not_authorized`, `maintenance`, `unsupported_credential_type`.
 
@@ -217,6 +232,8 @@ En los eventos de dominio, `buildingId` del sobre es el del dispositivo. `reason
 |---|---|---|
 | `<gatewayCode>.device-command` | `DeviceCommandRequested` | `{"commandId":"5b0e…(uuid sin guiones, 32 hex)","deviceCode":"esp32-acc-01","type":"rgb","params":{"color":"#00FF88"},"expiresAt":"2026-10-23T15:04:15Z"}` |
 | `<gatewayCode>.sync-requested` | `SyncRequested` | `{"syncVersion":43}` |
+
+Tipos de `DeviceCommandRequested`: `rgb` (`{"color":"#00FF88"}`) `enroll` (`{"active":true,"seconds":60}` o `{"active":false}`) e `identify` (`{"seconds":10}`). `identify` es el único tipo que se acepta para un `deviceCode` que el gateway tiene como pendiente. El gateway valida `enroll` (`active` booleano, `seconds` entero 1..300; con `active:true` el dispositivo no puede estar `OFFLINE`, `INACTIVE` ni `MAINTENANCE`) y lo reenvía al nodo con el mismo tipo; salir del modo registro siempre se reenvía.
 
 El sobre lleva `producer: "iot-access-management"`, `gatewayCode` y `buildingId`. El resultado de una orden vuelve como `edge.command-result`, con `commandId` y `correlationId` iguales.
 
@@ -313,12 +330,19 @@ Notas:
 | `DELETE /access/reservations/{id}/authorizations/{userId}` | titular o ADMIN | — | `204` · 404 |
 | `PUT /iot/devices/{id}/led` | titular de la reserva activa o ADMIN | `{"color":"#00ff88"}` | `202 DeviceCommandResource` (`PENDING`). Errores: 409 `"La puerta no está reservada"` (`FREE_ACCESS`); 409 si el dispositivo no está `ACTIVE`; 403 si no es titular ni ADMIN; 400 color inválido; 400 si el dispositivo no tiene `RGB_LED` |
 | `GET /iot/device-commands/{commandId}` | quien lo pidió o ADMIN | — | `200 DeviceCommandResource` · 404 |
+| `POST /iot/devices/{id}/enrollment` | ADMIN | — | `201 CardEnrollmentResource` (`ACTIVE`, 60 s). Envía `enroll` al lector y cancela una sesión previa del mismo lector · 404 · 400 sin capacidad `RFID` · 409 lector no `ACTIVE` |
+| `GET /iot/devices/{id}/enrollment` | ADMIN | — | `200 CardEnrollmentResource` (última sesión; vence la que pasó su ventana. Si `CAPTURED`, trae `capturedUid` y `existingCredential` si la tarjeta ya existe) · `204` si el lector no tiene sesiones |
+| `DELETE /iot/devices/{id}/enrollment` | ADMIN | — | `204`. Si la sesión sigue `ACTIVE` la cancela y envía `enroll {"active":false}` |
+| `GET /iot/discovered-devices` | ADMIN | `?buildingId=&status=` (`status` por defecto `PENDING`) | `200 [DiscoveredDeviceResource]` (más recientes primero) |
+| `POST /iot/discovered-devices/{id}/identify` | ADMIN | `{"seconds":10}` opcional | `202`. Envía `identify` al nodo por su gateway · 404 · 409 si no está `PENDING` |
+| `POST /iot/discovered-devices/{id}/adopt` | ADMIN | `AdoptDeviceRequest` `{"name":"Puerta gimnasio","location":"Piso 2","deviceType":"DOOR","capabilities":["RFID","LOCK",…],"unlockSeconds":5}` | `201 DeviceResource` (en `PROVISIONED`, pasa a `ACTIVE` con su primer heartbeat). El descubierto queda `ADOPTED` · 404 · 409 si no está `PENDING` o el código ya existe |
+| `POST /iot/discovered-devices/{id}/ignore` | ADMIN | — | `200 DiscoveredDeviceResource` (`IGNORED`; deja de listarse como pendiente, aunque siga anunciándose) · 404 |
 
 **Credenciales, accesos y estado del residente**
 
 | Endpoint | Rol | Request | Response |
 |---|---|---|---|
-| `POST /access/credentials` | ADMIN | `{"rfidUid":"04 a1 b2 c3","buildingId":12,"userId":15,"holderName":"Ana Perez","validFrom":null,"validUntil":null}` | `201 CredentialResource` (se dispara la verificación de deuda del usuario) · 409 UID duplicado · 400 UID inválido |
+| `POST /access/credentials` | ADMIN | `{"rfidUid":"04 a1 b2 c3","buildingId":12,"userId":15,"holderName":"Ana Perez","validFrom":null,"validUntil":null}` | `201 CredentialResource` (se dispara la verificación de deuda del usuario) · 409 UID duplicado (tarjeta `ACTIVE` o `SUSPENDED`) · 400 UID inválido. Si el UID pertenece a una tarjeta `REVOKED` o `LOST`, se **reasigna**: la misma credencial pasa al nuevo titular y edificio y vuelve a `ACTIVE` |
 | `GET /access/credentials` | ADMIN | `?buildingId=&userId=&status=` | `200 [CredentialResource]` |
 | `PATCH /access/credentials/{id}/status` | ADMIN | `{"status":"ACTIVE"}` (`ACTIVE`, `SUSPENDED`, `REVOKED`, `LOST`) | `200 CredentialResource`. Reactivar limpia `suspensionReason`; la próxima verificación de deuda puede volver a suspenderla |
 | `GET /access/me/credentials` | autenticado | — | `200 [CredentialResource]` (`rfidUid` enmascarado) |

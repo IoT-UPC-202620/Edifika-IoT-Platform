@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v1/residential/units/44"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "idUnit": 44,
+      "idBuilding": 12,
+      "unitNumber": 504,
+      "floor": 5,
+      "coveredArea": 85.0,
+      "totalArea": 92.0,
+      "participationPercentage": 2.5,
+      "status": "OCCUPIED"
+    }
+  }
+}

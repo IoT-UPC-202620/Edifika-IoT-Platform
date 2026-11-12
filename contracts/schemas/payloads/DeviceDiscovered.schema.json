@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DeviceDiscovered Event Payload",
+  "description": "El gateway identificó un nodo que no está registrado. Se publica al verlo por primera vez, cuando cambian sus datos y como mínimo cada 5 min mientras siga anunciándose.",
+  "type": "object",
+  "properties": {
+    "deviceCode": {
+      "type": "string"
+    },
+    "mac": {
+      "type": "string",
+      "pattern": "^([0-9A-F]{2}:){5}[0-9A-F]{2}$"
+    },
+    "firmware": {
+      "type": "string"
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "RFID",
+          "LOCK",
+          "BUZZER",
+          "OLED",
+          "RGB_LED",
+          "TEMPERATURE",
+          "HUMIDITY"
+        ]
+      }
+    },
+    "ip": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rssi": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "pairingCode": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$"
+    },
+    "firstSeenAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lastSeenAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "deviceCode",
+    "mac",
+    "firmware",
+    "capabilities",
+    "pairingCode",
+    "firstSeenAt",
+    "lastSeenAt"
+  ],
+  "additionalProperties": true
+}
