@@ -1,0 +1,189 @@
+# Full Edifika backend on one machine: infra (docker-compose.yml) + every microservice + API Gateway.
+# The sibling repos must be cloned next to this one (../Edifika-ApiGateway, ../Edifika-Microservice-*).
+#
+#   docker compose -f docker-compose.full.yml up -d --build                       # backend
+#   docker compose -f docker-compose.full.yml --profile edge up -d edge-gateway   # after registering the gateway
+#   docker compose -f docker-compose.full.yml --profile notifications up -d       # needs FIREBASE_CREDENTIALS
+#
+# See DESPLIEGUE.md for the whole procedure.
+
+include:
+  - docker-compose.yml
+
+x-java-env: &java-env
+  DATABASE_USERNAME: ${POSTGRES_USER:-edifika}
+  DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-edifika-dev}
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USERNAME: ${RABBITMQ_USER:-edifika}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-edifika-dev}
+  JWT_SECRET: ${JWT_SECRET:-edifika-local-secret-key-must-be-at-least-32-characters}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:3000,http://localhost:10000}
+
+x-java-service: &java-service
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+  networks:
+    - edifika-iot
+
+services:
+  iam:
+    <<: *java-service
+    build: ../Edifika-Microservice-IAM
+    ports: ["8081:8081"]
+    environment:
+      <<: *java-env
+      PORT: "8081"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/iam_db
+      FRONTEND_APP_URL: ${FRONTEND_APP_URL:-http://localhost:4200}
+
+  residential:
+    <<: *java-service
+    build: ../Edifika-Microservice-Residential-Managemen
+    ports: ["8082:8082"]
+    environment:
+      <<: *java-env
+      PORT: "8082"
+      DB_URL: jdbc:postgresql://postgres:5432/residential_db
+      DB_USERNAME: ${POSTGRES_USER:-edifika}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-edifika-dev}
+
+  reservation:
+    <<: *java-service
+    build: ../Edifika-Microservice-Reservation
+    ports: ["8083:8083"]
+    environment:
+      <<: *java-env
+      PORT: "8083"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/reservation_db
+
+  payment:
+    <<: *java-service
+    build: ../Edifika-Microservice-Payment
+    ports: ["8084:8084"]
+    environment:
+      <<: *java-env
+      PORT: "8084"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/payment_db
+      CULQI_SECRET_KEY: ${CULQI_SECRET_KEY:-}
+
+  communications:
+    <<: *java-service
+    build: ../Edifika-Microservice-Communications
+    ports: ["8085:8085"]
+    environment:
+      <<: *java-env
+      PORT: "8085"
+      DB_URL: jdbc:postgresql://postgres:5432/communication_db
+
+  forum:
+    <<: *java-service
+    build: ../Edifika-Microservice-Forum
+    ports: ["8086:8086"]
+    environment:
+      <<: *java-env
+      PORT: "8086"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/forum_db
+
+  # Fails at startup without Firebase credentials, so it is opt-in.
+  notification:
+    <<: *java-service
+    build: ../Edifika-Microservice-Notification
+    profiles: ["notifications"]
+    ports: ["8087:8087"]
+    environment:
+      <<: *java-env
+      PORT: "8087"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/notification_db
+      FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS:-}
+
+  report:
+    <<: *java-service
+    build: ../Edifika-Microservice-Report
+    ports: ["8088:8088"]
+    environment:
+      <<: *java-env
+      PORT: "8088"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/report_db
+      API_GATEWAY_URL: http://api-gateway:8080
+
+  access:
+    <<: *java-service
+    build: ../Edifika-Microservice-IoT-Access-Management
+    ports: ["8089:8089"]
+    environment:
+      <<: *java-env
+      PORT: "8089"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/access_db
+      RESIDENTIAL_SERVICE_URL: http://residential:8082
+      PAYMENT_SERVICE_URL: http://payment:8084
+      ACCESS_TIMEZONE: America/Lima
+
+  telemetry:
+    <<: *java-service
+    build: ../Edifika-Microservice-IoT-Telemetry
+    ports: ["8090:8090"]
+    environment:
+      <<: *java-env
+      PORT: "8090"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/telemetry_db
+
+  api-gateway:
+    build: ../Edifika-ApiGateway
+    restart: unless-stopped
+    ports: ["8080:8080"]
+    environment:
+      PORT: "8080"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:3000,http://localhost:10000}
+      IAM_SERVICE_URL: http://iam:8081
+      RESIDENTIAL_SERVICE_URL: http://residential:8082
+      RESERVATION_SERVICE_URL: http://reservation:8083
+      PAYMENT_SERVICE_URL: http://payment:8084
+      COMMUNICATION_SERVICE_URL: http://communications:8085
+      FORUM_SERVICE_URL: http://forum:8086
+      NOTIFICATION_SERVICE_URL: http://notification:8087
+      REPORT_SERVICE_URL: http://report:8088
+      ACCESS_SERVICE_URL: http://access:8089
+      TELEMETRY_SERVICE_URL: http://telemetry:8090
+    depends_on:
+      - iam
+      - residential
+      - access
+      - telemetry
+    networks:
+      - edifika-iot
+
+  # Needs GATEWAY_API_KEY, returned by POST /api/v1/iot/gateways (DESPLIEGUE.md, step 1.4).
+  edge-gateway:
+    build: ../Edifika-Microservice-IoT-Gateway
+    profiles: ["edge"]
+    restart: unless-stopped
+    ports: ["8000:8000"]
+    environment:
+      EDGE_GATEWAY_ID: ${GATEWAY_ID:-edge-gateway-01}
+      EDGE_SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+      EDGE_DATABASE_PATH: /data/edge-gateway.db
+      EDGE_MQTT_HOST: mosquitto
+      EDGE_MQTT_PORT: "1883"
+      EDGE_AMQP_URL: amqp://${RABBITMQ_USER:-edifika}:${RABBITMQ_PASSWORD:-edifika-dev}@rabbitmq:5672/
+      EDGE_SYNC_BASE_URL: http://access:8089
+      EDGE_SYNC_API_KEY: ${GATEWAY_API_KEY:-}
+      EDGE_TIMEZONE: America/Lima
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      access:
+        condition: service_started
+    volumes:
+      - edge_gateway_data:/data
+    networks:
+      - edifika-iot
+
+volumes:
+  edge_gateway_data:
