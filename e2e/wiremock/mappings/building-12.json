@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/api/v1/residential/buildings/12"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "idBuilding": 12,
+      "name": "Torre A",
+      "address": "Av. Principal 123",
+      "district": "Miraflores",
+      "city": "Lima"
+    }
+  }
+}
